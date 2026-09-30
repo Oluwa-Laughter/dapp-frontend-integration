@@ -6,6 +6,18 @@ import {
   SUPPORTED_CHAINS,
 } from "../constants";
 
+function getWalletErrorMessage(error, fallback) {
+  if (error?.code === "NETWORK_ERROR") {
+    return "The wallet network changed. Your account state is being refreshed.";
+  }
+
+  if (error?.code === 4001) {
+    return "The wallet request was rejected.";
+  }
+
+  return error?.message || fallback;
+}
+
 function useWalletConnect() {
   const [account, setAccount] = useState("");
   const [signer, setSigner] = useState(null);
@@ -16,7 +28,10 @@ function useWalletConnect() {
   const [browserProvider, setBrowserProvider] = useState(null);
   const [connectionError, setConnectionError] = useState("");
   const [connecting, setConnecting] = useState(false);
+  const [balanceRefreshing, setBalanceRefreshing] = useState(false);
   const connectRequestInFlight = useRef(false);
+  const balanceRefreshInFlight = useRef(false);
+  const switchRequestInFlight = useRef(false);
 
   const updateChain = useCallback((nextChainId) => {
     setChainId(nextChainId);
@@ -44,13 +59,29 @@ function useWalletConnect() {
   );
 
   const getBalance = useCallback(async () => {
+    if (balanceRefreshInFlight.current) {
+      return;
+    }
+
     if (!browserProvider || !account) {
       setBalance(null);
       return;
     }
 
-    const accountBalance = await browserProvider.getBalance(account);
-    setBalance(formatEther(accountBalance));
+    balanceRefreshInFlight.current = true;
+    setBalanceRefreshing(true);
+
+    try {
+      const accountBalance = await browserProvider.getBalance(account);
+      setBalance(formatEther(accountBalance));
+    } catch (error) {
+      setConnectionError(
+        getWalletErrorMessage(error, "Could not refresh balance."),
+      );
+    } finally {
+      balanceRefreshInFlight.current = false;
+      setBalanceRefreshing(false);
+    }
   }, [browserProvider, account]);
 
   const connectWallet = useCallback(async () => {
@@ -81,7 +112,7 @@ function useWalletConnect() {
           ? "MetaMask is already processing a connection request. Finish or close the MetaMask popup, then try again."
           : error.code === 4001
             ? "MetaMask connection was rejected."
-            : error.message || "MetaMask connection failed.",
+            : getWalletErrorMessage(error, "MetaMask connection failed."),
       );
     } finally {
       connectRequestInFlight.current = false;
@@ -98,7 +129,9 @@ function useWalletConnect() {
         });
       }
     } catch (error) {
-      console.error("Failed to revoke wallet permission:", error);
+      setConnectionError(
+        getWalletErrorMessage(error, "Could not revoke wallet permission."),
+      );
     }
 
     setAccount(null);
@@ -112,12 +145,18 @@ function useWalletConnect() {
     async (nextChainId) => {
       const chain = SUPPORTED_CHAINS[nextChainId];
 
-      if (!provider || !chain) {
+      if (!provider || !chain || !account) {
         setConnectionError(
-          "Select a supported chain and connect MetaMask first.",
+          "Connect MetaMask before switching to a supported network.",
         );
         return;
       }
+
+      if (switchRequestInFlight.current) {
+        return;
+      }
+
+      switchRequestInFlight.current = true;
 
       try {
         setConnectionError("");
@@ -137,31 +176,41 @@ function useWalletConnect() {
           } catch (addError) {
             setConnectionError(
               addError.code === 4001
-                ? "Adding the network was rejected in MetaMask."
-                : addError.message || "Could not add the network to MetaMask.",
+                ? "Adding the supported network was rejected in MetaMask."
+                : getWalletErrorMessage(
+                    addError,
+                    "Could not add the supported network.",
+                  ),
             );
           }
-          return;
+        } else {
+          setConnectionError(
+            error.code === 4001
+              ? "Network change was rejected in MetaMask."
+              : getWalletErrorMessage(error, "Could not change networks."),
+          );
         }
-
-        setConnectionError(
-          error.code === 4001
-            ? "Network switch was rejected in MetaMask."
-            : error.message || "Could not switch networks in MetaMask.",
-        );
+      } finally {
+        switchRequestInFlight.current = false;
       }
     },
-    [provider, updateChain],
+    [account, provider, updateChain],
   );
 
   const handleAccountsChanged = useCallback(
     async (accounts) => {
-      await setAccountAndSigner(accounts);
+      try {
+        await setAccountAndSigner(accounts);
 
-      if (accounts.length == 0) {
-        setChainId(null);
-        setChainName(null);
-        setBalance(null);
+        if (accounts.length == 0) {
+          setChainId(null);
+          setChainName(null);
+          setBalance(null);
+        }
+      } catch (error) {
+        setConnectionError(
+          getWalletErrorMessage(error, "Could not update the wallet account."),
+        );
       }
     },
     [setAccountAndSigner],
@@ -169,21 +218,29 @@ function useWalletConnect() {
 
   const handleChainChanged = useCallback(
     async (newChainId) => {
-      updateChain(parseInt(newChainId, 16));
+      const nextChainId = parseInt(newChainId, 16);
+      updateChain(nextChainId);
 
-      await getBalance();
+      try {
+        const accounts = await provider.request({ method: "eth_accounts" });
+
+        if (accounts.length > 0) {
+          await setAccountAndSigner(accounts);
+        } else {
+          setBalance(null);
+        }
+      } catch (error) {
+        setConnectionError(
+          getWalletErrorMessage(error, "Could not refresh wallet state."),
+        );
+      }
     },
-    [getBalance, updateChain],
+    [provider, setAccountAndSigner, updateChain],
   );
 
-  const handleDisconnect = useCallback(
-    async (error) => {
-      console.error("Wallet disocnnected with error: ", error);
-      await disconnectWallet();
-      console.log("handle disconnect successful...");
-    },
-    [disconnectWallet],
-  );
+  const handleDisconnect = useCallback(async () => {
+    await disconnectWallet();
+  }, [disconnectWallet]);
 
   useEffect(() => {
     const init = async () => {
@@ -197,7 +254,9 @@ function useWalletConnect() {
         const network = await browserProvider.getNetwork();
         updateChain(Number(network.chainId));
       } catch (error) {
-        setConnectionError(error.message || "Could not read MetaMask state.");
+        setConnectionError(
+          getWalletErrorMessage(error, "Could not read MetaMask state."),
+        );
       }
     };
 
@@ -242,7 +301,7 @@ function useWalletConnect() {
       }
 
       setProvider(injectedProvider);
-      setBrowserProvider(new BrowserProvider(injectedProvider));
+      setBrowserProvider(new BrowserProvider(injectedProvider, "any"));
     };
 
     window.addEventListener(EIP6963AnnouceProvider, handleProviderAnnouncement);
@@ -252,7 +311,7 @@ function useWalletConnect() {
     fallbackTimer = window.setTimeout(() => {
       if (window.ethereum?.isMetaMask === true) {
         setProvider(window.ethereum);
-        setBrowserProvider(new BrowserProvider(window.ethereum));
+        setBrowserProvider(new BrowserProvider(window.ethereum, "any"));
       }
     }, 100);
 
@@ -276,10 +335,12 @@ function useWalletConnect() {
     isSupportedChain: chainName !== null,
     connectionError,
     connecting,
+    balanceRefreshing,
     connectWallet,
     disconnectWallet,
-    switchChain,
+    refreshBalance: getBalance,
     getBalance,
+    switchChain,
   };
 }
 

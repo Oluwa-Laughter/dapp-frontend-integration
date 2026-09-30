@@ -1,7 +1,9 @@
 import "./App.css";
 import BalanceDisplay from "./components/BalanceDisplay.jsx";
 import ConnectButton from "./components/ConnectButton.jsx";
+import RefreshBalanceButton from "./components/RefreshBalanceButton.jsx";
 import { SUPPORTED_CHAINS } from "./constants/index.js";
+import SupportedChainsList from "./components/SupportedChainsList.jsx";
 import SwitchNetworkButton from "./components/SwitchNetworkButton.jsx";
 import useWalletConnect from "./hooks/useWalletConnect.js";
 
@@ -14,8 +16,10 @@ function App() {
     connectionError,
     isSupportedChain,
     connecting,
+    balanceRefreshing,
     connectWallet,
     disconnectWallet,
+    refreshBalance,
     switchChain,
   } = useWalletConnect();
   return (
@@ -50,6 +54,11 @@ function App() {
           chainName={chainName}
           nativeSymbol={SUPPORTED_CHAINS[chainId]?.nativeCurrency.symbol}
         />
+        <RefreshBalanceButton
+          refreshBalance={refreshBalance}
+          refreshing={balanceRefreshing}
+          disabled={!account}
+        />
 
         {chainId !== null && (
           <div role={isSupportedChain ? undefined : "alert"}>
@@ -63,9 +72,16 @@ function App() {
           </div>
         )}
 
+        {account && !isSupportedChain && (
+          <div>
+            <p>Choose a supported network to continue:</p>
+            <SwitchNetworkButton chainId={chainId} switchChain={switchChain} />
+          </div>
+        )}
+
         {connectionError && <div role="alert">{connectionError}</div>}
 
-        <SwitchNetworkButton chainId={chainId} switchChain={switchChain} />
+        <SupportedChainsList />
       </main>
     </>
   );
