@@ -5,6 +5,13 @@ import { SEPOLIA_CHAIN_HEX, SEPOLIA_CHAIN_ID } from "../constants";
 const messageFor = (error, fallback) =>
   error?.reason || error?.shortMessage || error?.message || fallback;
 
+const normalizeChainId = (value) => {
+  if (typeof value === "number") return value;
+  return String(value).toLowerCase().startsWith("0x")
+    ? Number.parseInt(value, 16)
+    : Number(value);
+};
+
 export default function useWalletConnect() {
   const [browserProvider] = useState(() =>
     window.ethereum ? new BrowserProvider(window.ethereum, "any") : null,
@@ -17,10 +24,14 @@ export default function useWalletConnect() {
     if (!window.ethereum) return undefined;
 
     const sync = async () => {
-      const accounts = await browserProvider.send("eth_accounts", []);
-      const network = await browserProvider.getNetwork();
+      const accounts = await window.ethereum.request({
+        method: "eth_accounts",
+      });
+      const nextChainId = await window.ethereum.request({
+        method: "eth_chainId",
+      });
       setAccount(accounts[0] || "");
-      setChainId(Number(network.chainId));
+      setChainId(normalizeChainId(nextChainId));
     };
     sync().catch((walletError) =>
       setError(messageFor(walletError, "Could not read wallet state.")),
@@ -28,7 +39,7 @@ export default function useWalletConnect() {
 
     const accountsChanged = (accounts) => setAccount(accounts[0] || "");
     const chainChanged = (nextChainId) =>
-      setChainId(Number.parseInt(nextChainId, 16));
+      setChainId(normalizeChainId(nextChainId));
     window.ethereum.on("accountsChanged", accountsChanged);
     window.ethereum.on("chainChanged", chainChanged);
     return () => {
@@ -44,10 +55,14 @@ export default function useWalletConnect() {
     }
     try {
       setError("");
-      const accounts = await browserProvider.send("eth_requestAccounts", []);
-      const network = await browserProvider.getNetwork();
+      const accounts = await window.ethereum.request({
+        method: "eth_requestAccounts",
+      });
+      const nextChainId = await window.ethereum.request({
+        method: "eth_chainId",
+      });
       setAccount(accounts[0] || "");
-      setChainId(Number(network.chainId));
+      setChainId(normalizeChainId(nextChainId));
     } catch (walletError) {
       setError(messageFor(walletError, "Wallet connection failed."));
     }
@@ -72,6 +87,10 @@ export default function useWalletConnect() {
         method: "wallet_switchEthereumChain",
         params: [{ chainId: SEPOLIA_CHAIN_HEX }],
       });
+      const nextChainId = await window.ethereum.request({
+        method: "eth_chainId",
+      });
+      setChainId(normalizeChainId(nextChainId));
     } catch (walletError) {
       setError(messageFor(walletError, "Could not switch to Sepolia."));
     }
