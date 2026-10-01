@@ -1,0 +1,232 @@
+:root {
+  --ink: #17211b;
+  --muted: #66736a;
+  --paper: #f5f6f1;
+  --panel: #fff;
+  --line: #dce3db;
+  --accent: #176b4d;
+  --accent-dark: #0d4e38;
+  --warning: #b2791d;
+  --danger: #a24235;
+}
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+button,
+input {
+  font: inherit;
+}
+button {
+  border: 0;
+  border-radius: 5px;
+  padding: 0.75rem 1rem;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  font-weight: 700;
+}
+button:hover:not(:disabled) {
+  background: var(--accent-dark);
+}
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.app-shell {
+  width: min(1180px, calc(100% - 2rem));
+  margin: auto;
+  padding: 3rem 0 5rem;
+}
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: 2rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 2rem;
+}
+.eyebrow {
+  margin: 0 0 0.45rem;
+  color: var(--accent);
+  font:
+    700 0.72rem/1.2 "Space Grotesk",
+    sans-serif;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+h1,
+h2,
+p {
+  margin-top: 0;
+}
+h1 {
+  margin-bottom: 0.45rem;
+  font:
+    700 clamp(2.5rem, 7vw, 5.5rem)/0.9 "Space Grotesk",
+    sans-serif;
+  letter-spacing: -0.06em;
+}
+h2 {
+  margin-bottom: 0.35rem;
+  font:
+    700 1.25rem "Space Grotesk",
+    sans-serif;
+}
+.muted {
+  color: var(--muted);
+}
+.topbar .muted {
+  margin: 0;
+}
+.layout {
+  display: grid;
+  grid-template-columns: minmax(270px, 0.75fr) minmax(0, 1.5fr);
+  gap: 1rem;
+  margin-top: 1rem;
+  align-items: start;
+}
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 1.4rem;
+}
+.panel h2 {
+  margin-top: 0;
+}
+.panel input {
+  width: 100%;
+  margin: 0.35rem 0 0.7rem;
+}
+input {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0.7rem;
+  background: #fbfcfa;
+  color: var(--ink);
+}
+input:focus {
+  outline: 2px solid #e8b85c;
+  border-color: var(--accent);
+}
+.notice {
+  margin-top: 1rem;
+  padding: 0.9rem 1rem;
+  border-left: 4px solid var(--accent);
+  background: #fff;
+}
+.notice.error {
+  border-color: var(--danger);
+}
+.notice.warning {
+  border-color: var(--warning);
+}
+.notice.success {
+  border-color: var(--accent);
+}
+.notice button {
+  padding: 0.35rem 0.55rem;
+}
+.section-heading,
+.campaign-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 1rem;
+}
+.section-heading {
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1rem;
+}
+.campaign-list {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+.campaign-card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1rem;
+}
+.campaign-card h2 {
+  font:
+    500 0.9rem/1.35 ui-monospace,
+    monospace;
+  overflow-wrap: anywhere;
+}
+.status {
+  border-radius: 99px;
+  padding: 0.25rem 0.5rem;
+  background: #eef0ed;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.status.active {
+  background: #e1f1e8;
+  color: var(--accent);
+}
+dl {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+dd {
+  margin: 0.15rem 0 0;
+  font:
+    700 0.82rem ui-monospace,
+    monospace;
+  overflow-wrap: anywhere;
+}
+.action-row {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+.action-row input {
+  flex: 1 1 130px;
+  margin: 0;
+  min-width: 0;
+}
+.action-row button {
+  padding: 0.55rem 0.7rem;
+  font-size: 0.75rem;
+}
+.compact button {
+  background: #ecf2ed;
+  color: var(--accent-dark);
+}
+.compact button:hover:not(:disabled) {
+  background: #dcebe1;
+}
+.empty {
+  color: var(--muted);
+  padding: 1rem 0;
+}
+@media (max-width: 760px) {
+  .app-shell {
+    padding-top: 1.5rem;
+  }
+  .topbar {
+    align-items: start;
+    flex-direction: column;
+  }
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  dl {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
