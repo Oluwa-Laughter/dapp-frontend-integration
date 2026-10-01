@@ -17,6 +17,59 @@
   }
 }
 
+.token-panel {
+  width: min(100%, 720px);
+  box-sizing: border-box;
+  padding: 24px;
+  text-align: left;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  overflow: hidden;
+}
+
+.token-panel input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.token-current-account,
+.token-address {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.token-current-account {
+  margin: 0 0 16px;
+  font-size: 0.9rem;
+}
+
+.token-results {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.token-card {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.token-error {
+  color: #b42318;
+}
+
 .hero {
   position: relative;
 
@@ -167,7 +220,7 @@
 
   &::before,
   &::after {
-    content: '';
+    content: "";
     position: absolute;
     top: -4.5px;
     border: 5px solid transparent;

@@ -6,6 +6,7 @@ import { SUPPORTED_CHAINS } from "./constants/index.js";
 import SupportedChainsList from "./components/SupportedChainsList.jsx";
 import SwitchNetworkButton from "./components/SwitchNetworkButton.jsx";
 import useWalletConnect from "./hooks/useWalletConnect.js";
+import TokensAndBalances from "./components/TokensAndBalances.jsx";
 
 function App() {
   const {
@@ -17,11 +18,13 @@ function App() {
     isSupportedChain,
     connecting,
     balanceRefreshing,
+    browserProvider,
     connectWallet,
     disconnectWallet,
     refreshBalance,
     switchChain,
   } = useWalletConnect();
+
   return (
     <>
       <main
@@ -82,6 +85,15 @@ function App() {
         {connectionError && <div role="alert">{connectionError}</div>}
 
         <SupportedChainsList />
+
+        <div style={{ marginTop: "20px" }}>
+          <h3>TOKENS AND BALANCES MULTICALL2</h3>
+          <TokensAndBalances
+            account={account}
+            browserProvider={browserProvider}
+            chainId={chainId}
+          />
+        </div>
       </main>
     </>
   );
