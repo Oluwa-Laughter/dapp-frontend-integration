@@ -27,10 +27,6 @@ export default function CreateCampaignForm({ loading, onCreate }) {
     <form className="panel" onSubmit={submit}>
       <p className="eyebrow">Create</p>
       <h2>Start a campaign</h2>
-      <p className="muted">
-        Amounts are raw token units. Milestone status values come from your
-        Solidity enum.
-      </p>
       <input
         placeholder="target amount"
         value={form.target}

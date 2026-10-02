@@ -9,7 +9,7 @@ import useWalletConnect from "./hooks/useWalletConnect";
 
 function App() {
   const wallet = useWalletConnect();
-  const campaigns = useCampaigns(wallet.chainId);
+  const campaigns = useCampaigns(wallet.chainId, wallet.account);
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [actionError, setActionError] = useState("");
@@ -115,6 +115,7 @@ function App() {
               <CampaignCard
                 key={campaign.id}
                 campaign={campaign}
+                account={wallet.account}
                 actions={actions}
                 onAction={runAction}
               />

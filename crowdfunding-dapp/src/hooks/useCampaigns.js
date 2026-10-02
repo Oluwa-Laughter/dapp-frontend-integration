@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Contract, Interface, isAddress } from "ethers";
+import { Contract, Interface, ZeroAddress, isAddress } from "ethers";
 import crowdfundingAbi from "../abi/crowdfunding.json";
 import multicall2Abi from "../abi/multicall2.json";
 import {
@@ -9,7 +9,7 @@ import {
   sepoliaProvider,
 } from "../constants";
 
-export default function useCampaigns(chainId) {
+export default function useCampaigns(chainId, account) {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -53,30 +53,47 @@ export default function useCampaigns(chainId) {
         ]),
       }));
       const [, results] = await multicall.aggregate.staticCall(calls);
+      const campaignRecords = results.map((result, campaignId) => {
+        const [
+          creator,
+          target,
+          deadline,
+          moneyRaised,
+          moneyavailable,
+          active,
+          cancelled,
+          tokenAccepted,
+        ] = campaignInterface.decodeFunctionResult("campaign", result);
+        return {
+          id: campaignId,
+          creator,
+          target,
+          deadline: Number(deadline),
+          moneyRaised,
+          moneyavailable,
+          active,
+          cancelled,
+          tokenAccepted,
+        };
+      });
+      const contributorAddress = isAddress(account) ? account : ZeroAddress;
+      const contributorCalls = campaignRecords.map(({ id }) => ({
+        target: CROWDFUNDING_ADDRESS,
+        callData: campaignInterface.encodeFunctionData("contributors", [
+          id,
+          contributorAddress,
+        ]),
+      }));
+      const [, contributorResults] =
+        await multicall.aggregate.staticCall(contributorCalls);
       setCampaigns(
-        results.map((result, campaignId) => {
-          const [
-            creator,
-            target,
-            deadline,
-            moneyRaised,
-            moneyavailable,
-            active,
-            cancelled,
-            tokenAccepted,
-          ] = campaignInterface.decodeFunctionResult("campaign", result);
-          return {
-            id: campaignId,
-            creator,
-            target,
-            deadline: Number(deadline),
-            moneyRaised,
-            moneyavailable,
-            active,
-            cancelled,
-            tokenAccepted,
-          };
-        }),
+        campaignRecords.map((campaign, index) => ({
+          ...campaign,
+          contributorAmount: campaignInterface.decodeFunctionResult(
+            "contributors",
+            contributorResults[index],
+          )[0],
+        })),
       );
     } catch (readError) {
       setError(readError.reason || readError.shortMessage || readError.message);

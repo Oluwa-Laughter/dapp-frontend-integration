@@ -215,6 +215,12 @@ dd {
   color: var(--muted);
   padding: 1rem 0;
 }
+.permission-note {
+  align-self: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
 @media (max-width: 760px) {
   .app-shell {
     padding-top: 1.5rem;
