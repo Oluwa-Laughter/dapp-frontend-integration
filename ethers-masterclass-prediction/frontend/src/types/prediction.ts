@@ -1,5 +1,16 @@
 // Types for Ethers.js Prediction Market dApp
 
+export type ContractMarket = {
+  id: bigint;
+  title: string;
+  category: string;
+  endTime: bigint;
+  outcome: number;
+  totalYesPool: bigint;
+  totalNoPool: bigint;
+  resolved: boolean;
+};
+
 export type EIP1193Provider = {
   request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
   on: (event: string, listener: (...args: any[]) => void) => void;

@@ -1,173 +1,205 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { formatEther, parseEther } from "ethers";
+import { useCallback, useEffect, useState } from "react";
+import { formatEther, parseEther, type Abi, type Address } from "viem";
+import {
+  useAccount,
+  usePublicClient,
+  useWatchContractEvent,
+  useWriteContract,
+} from "wagmi";
 
 import { CONTRACTS } from "../contracts/predictionConfig";
-import { MarketOutcome, PredictionMarketData } from "../types/prediction";
-import { useContract } from "./useContract";
+import { ContractMarket, MarketOutcome, PredictionMarketData } from "../types/prediction";
+
+
+
+const contractAddress = CONTRACTS.predictionMarketOracleHub.address as Address;
+const contractAbi = CONTRACTS.predictionMarketOracleHub.abi as Abi;
 
 export const usePredictionMarket = (walletAddress: string | null) => {
-  const { getContract } = useContract();
-
+  const publicClient = usePublicClient({ chainId: 11155111 });
+  const { address } = useAccount();
+  const { writeContractAsync } = useWriteContract();
   const [markets, setMarkets] = useState<PredictionMarketData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const contract = useMemo(() => {
-    return getContract(
-      CONTRACTS.predictionMarketOracleHub.address,
-      CONTRACTS.predictionMarketOracleHub.abi,
-      true,
-    );
-  }, [getContract]);
-
   const readMarketData = useCallback(
-    async (market: any): Promise<PredictionMarketData> => {
-      if (!contract) {
-        throw new Error("Contract not initialized");
-      }
+    async (market: ContractMarket): Promise<PredictionMarketData> => {
+      const {
+        id,
+        title,
+        category,
+        endTime: rawEndTime,
+        outcome: rawOutcome,
+        totalYesPool,
+        totalNoPool,
+        resolved,
+      } = market;
 
-      let userYesBet = "0";
-      let userNoBet = "0.00";
+      let userYesBet = 0n;
+      let userNoBet = 0n;
       let userClaimed = false;
-      let userEstimatedWinnings = "0.00";
+      let userEstimatedWinnings = 0n;
 
-      if (walletAddress) {
+      if (walletAddress && publicClient) {
         const [userBet, winnings] = await Promise.all([
-          contract.userBets(market.id, walletAddress),
-          contract.calculateWinnings(market.id, walletAddress),
+          publicClient.readContract({
+            address: contractAddress,
+            abi: contractAbi,
+            functionName: "userBets",
+            args: [id, walletAddress as Address],
+          }),
+          publicClient.readContract({
+            address: contractAddress,
+            abi: contractAbi,
+            functionName: "calculateWinnings",
+            args: [id, walletAddress as Address],
+          }),
         ]);
 
-        userYesBet = formatEther(userBet.yesAmount);
-        userNoBet = formatEther(userBet.noAmount);
-        userClaimed = userBet.claimed;
-        userEstimatedWinnings = formatEther(winnings);
+        const bet = userBet as readonly [bigint, bigint, boolean];
+        userYesBet = bet[0];
+        userNoBet = bet[1];
+        userClaimed = bet[2];
+        userEstimatedWinnings = winnings as bigint;
       }
 
-      const endTime = Number(market.endTime);
+      const endTime = Number(rawEndTime);
 
       return {
-        id: Number(market.id),
-        title: market.title,
-        category: market.category,
+        id: Number(id),
+        title,
+        category,
         endTime,
-        outcome: Number(market.outcome) as MarketOutcome,
-        totalYesPool: formatEther(market.totalYesPool),
-        totalNoPool: formatEther(market.totalNoPool),
-        resolved: market.resolved,
-        userYesBet,
-        userNoBet,
+        outcome: Number(rawOutcome) as MarketOutcome,
+        totalYesPool: formatEther(totalYesPool),
+        totalNoPool: formatEther(totalNoPool),
+        resolved,
+        userYesBet: formatEther(userYesBet),
+        userNoBet: formatEther(userNoBet),
         userClaimed,
-        userEstimatedWinnings,
+        userEstimatedWinnings: formatEther(userEstimatedWinnings),
         isExpired: endTime <= Math.floor(Date.now() / 1000),
       };
     },
-    [contract, walletAddress],
+    [publicClient, walletAddress],
   );
 
   const fetchMarkets = useCallback(async () => {
-    if (!contract) {
-      return;
-    }
+    if (!publicClient) return;
 
     try {
       setIsLoading(true);
       setError(null);
 
-      const marketData = await contract.getAllMarkets();
+      const rawMarkets = await publicClient.readContract({
+        address: contractAddress,
+        abi: contractAbi,
+        functionName: "getAllMarkets",
+      });
 
       const processedMarkets = await Promise.all(
-        marketData.map((market: any) => readMarketData(market)),
+        (rawMarkets as ContractMarket[]).map(readMarketData),
       );
-
       setMarkets(processedMarkets);
     } catch (err) {
       console.error("Failed to fetch markets:", err);
-
       setError(err instanceof Error ? err.message : "Failed to fetch markets");
     } finally {
       setIsLoading(false);
     }
-  }, [contract, readMarketData]);
+  }, [publicClient, readMarketData]);
+
+  useEffect(() => {
+    void fetchMarkets();
+  }, [fetchMarkets]);
+
+  useWatchContractEvent({
+    address: contractAddress,
+    abi: contractAbi,
+    chainId: 11155111,
+    eventName: "MarketCreated",
+    onLogs: () => void fetchMarkets(),
+  });
+
+  useWatchContractEvent({
+    address: contractAddress,
+    abi: contractAbi,
+    chainId: 11155111,
+    eventName: "BetPlaced",
+    onLogs: () => void fetchMarkets(),
+  });
+
+  useWatchContractEvent({
+    address: contractAddress,
+    abi: contractAbi,
+    chainId: 11155111,
+    eventName: "MarketResolved",
+    onLogs: () => void fetchMarkets(),
+  });
+
+  useWatchContractEvent({
+    address: contractAddress,
+    abi: contractAbi,
+    chainId: 11155111,
+    eventName: "WinningsClaimed",
+    onLogs: () => void fetchMarkets(),
+  });
 
   const placeBet = useCallback(
     async (marketId: number, isYes: boolean, amountEth: string) => {
-      if (!contract) {
-        setError("Contract not initialized");
+      if (!address || !publicClient) {
+        setError("Connect your wallet before placing a bet");
         return;
       }
 
       try {
         setError(null);
-
-        const tx = await contract.placeBet(marketId, isYes, {
+        const hash = await writeContractAsync({
+          address: contractAddress,
+          abi: contractAbi,
+          chainId: 11155111,
+          functionName: "placeBet",
+          args: [BigInt(marketId), isYes],
           value: parseEther(amountEth),
         });
-
-        await tx.wait();
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        if (receipt.status !== "success") throw new Error("Transaction reverted");
+        await fetchMarkets();
       } catch (err) {
         console.error("Failed to submit transaction:", err);
-
         setError(err instanceof Error ? err.message : "Transaction failed");
       }
     },
-    [contract],
+    [address, fetchMarkets, publicClient, writeContractAsync],
   );
 
   const claimWinnings = useCallback(
     async (marketId: number) => {
-      if (!contract) {
-        setError("Contract not initialized");
+      if (!address || !publicClient) {
+        setError("Connect your wallet before claiming winnings");
         return;
       }
 
       try {
         setError(null);
-
-        const tx = await contract.claimWinnings(marketId);
-        await tx.wait();
+        const hash = await writeContractAsync({
+          address: contractAddress,
+          abi: contractAbi,
+          chainId: 11155111,
+          functionName: "claimWinnings",
+          args: [BigInt(marketId)],
+        });
+        const receipt = await publicClient.waitForTransactionReceipt({ hash });
+        if (receipt.status !== "success") throw new Error("Transaction reverted");
+        await fetchMarkets();
       } catch (err) {
         console.error("Failed to submit transaction:", err);
-
         setError(err instanceof Error ? err.message : "Transaction failed");
       }
     },
-    [contract],
+    [address, fetchMarkets, publicClient, writeContractAsync],
   );
 
-  useEffect(() => {
-    if (!contract) {
-      return;
-    }
-
-    fetchMarkets();
-  }, [contract, fetchMarkets]);
-
-  useEffect(() => {
-    if (!contract) {
-      return;
-    }
-
-    const refreshMarkets = () => {
-      fetchMarkets();
-    };
-
-    contract.on("MarketCreated", refreshMarkets);
-    contract.on("BetPlaced", refreshMarkets);
-    contract.on("MarketResolved", refreshMarkets);
-    contract.on("WinningsClaimed", refreshMarkets);
-    return () => {
-      contract.off("MarketCreated", refreshMarkets);
-      contract.off("BetPlaced", refreshMarkets);
-      contract.off("MarketResolved", refreshMarkets);
-      contract.off("WinningsClaimed", refreshMarkets);
-    };
-  }, [contract, fetchMarkets]);
-
-  return {
-    markets,
-    isLoading,
-    error,
-    placeBet,
-    claimWinnings,
-  };
+  return { markets, isLoading, error, placeBet, claimWinnings };
 };

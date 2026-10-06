@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { useAppKit } from "@reown/appkit/react";
+import { useAccount, useBalance, useDisconnect } from "wagmi";
 import { Header } from "./components/Header";
 import { MarketCard } from "./components/MarketCard";
 import { usePredictionMarket } from "./hooks/useWeb3Prediction.ts";
@@ -14,10 +16,25 @@ import {
   TrendingUp,
   Compass,
 } from "lucide-react";
-import { useWeb3Wallet } from "./hooks/useWeb3Wallet.ts";
+import { formatEther } from "viem/utils";
 
 export function App() {
-  const { wallet, connectWallet, disconnectWallet } = useWeb3Wallet();
+  const { open } = useAppKit();
+  const { address, isConnected, isConnecting } = useAccount();
+  const { disconnect } = useDisconnect();
+  const { data: balance } = useBalance({ address });
+
+  const wallet = {
+    address: address ?? null,
+    chainId: 11155111,
+    balance: balance ? Number(formatEther(balance.value)).toFixed(4) : "0.0000",
+    isConnected,
+    isConnecting,
+    error: null,
+  };
+
+  const connectWallet = () => void open();
+  const disconnectWallet = () => disconnect();
 
   const { markets, isLoading, error, placeBet, claimWinnings } =
     usePredictionMarket(wallet.address);
