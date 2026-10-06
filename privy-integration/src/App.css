@@ -1,0 +1,55 @@
+#root {
+  min-height: 100svh;
+}
+
+.app-shell {
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  padding: 24px;
+}
+
+.wallet {
+  width: min(100%, 520px);
+}
+
+h1 {
+  margin: 0 0 16px;
+}
+
+button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+
+button:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 3px;
+}
+
+dl {
+  margin: 24px 0 0;
+}
+
+dl > div {
+  display: grid;
+  grid-template-columns: 100px 1fr;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid currentColor;
+}
+
+dt {
+  font-weight: 700;
+}
+
+dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
