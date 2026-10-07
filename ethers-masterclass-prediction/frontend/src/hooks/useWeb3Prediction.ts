@@ -8,9 +8,11 @@ import {
 } from "wagmi";
 
 import { CONTRACTS } from "../contracts/predictionConfig";
-import { ContractMarket, MarketOutcome, PredictionMarketData } from "../types/prediction";
-
-
+import {
+  ContractMarket,
+  MarketOutcome,
+  PredictionMarketData,
+} from "../types/prediction";
 
 const contractAddress = CONTRACTS.predictionMarketOracleHub.address as Address;
 const contractAbi = CONTRACTS.predictionMarketOracleHub.abi as Abi;
@@ -164,7 +166,8 @@ export const usePredictionMarket = (walletAddress: string | null) => {
           value: parseEther(amountEth),
         });
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
-        if (receipt.status !== "success") throw new Error("Transaction reverted");
+        if (receipt.status !== "success")
+          throw new Error("Transaction reverted");
         await fetchMarkets();
       } catch (err) {
         console.error("Failed to submit transaction:", err);
@@ -191,7 +194,8 @@ export const usePredictionMarket = (walletAddress: string | null) => {
           args: [BigInt(marketId)],
         });
         const receipt = await publicClient.waitForTransactionReceipt({ hash });
-        if (receipt.status !== "success") throw new Error("Transaction reverted");
+        if (receipt.status !== "success")
+          throw new Error("Transaction reverted");
         await fetchMarkets();
       } catch (err) {
         console.error("Failed to submit transaction:", err);
